@@ -46,3 +46,5 @@ hook_prefix="@resurrect-hook-"
 
 delete_backup_after_option="@resurrect-delete-backup-after"
 default_delete_backup_after="30" # days
+
+spinner_chars_option="@resurrect-spinner-chars"
