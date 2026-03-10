@@ -365,7 +365,7 @@ cleanup_restored_pane_contents() {
 
 main() {
 	if supported_tmux_version_ok && check_saved_session_exists; then
-		start_spinner "Restoring..." "Tmux restore complete!"
+		start_spinner "restoring..." "Tmux restore complete!"
 		execute_hook "pre-restore-all"
 		restore_all_panes
 		handle_session_0
