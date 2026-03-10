@@ -249,6 +249,7 @@ detect_if_restoring_from_scratch() {
 	local total_number_of_panes="$(tmux list-panes -a | wc -l | sed 's/ //g')"
 	if [ "$total_number_of_panes" -eq 1 ]; then
 		restore_from_scratch_true
+		popup_log "Only one pane is currently open; restore will reuse it"
 	fi
 }
 
@@ -256,6 +257,7 @@ detect_if_restoring_pane_contents() {
 	if capture_pane_contents_option_on; then
 		cache_tmux_default_command
 		restore_pane_contents_true
+		popup_log "Restoring saved pane contents"
 	fi
 }
 
@@ -265,6 +267,7 @@ restore_all_panes() {
 	detect_if_restoring_from_scratch   # sets a global variable
 	detect_if_restoring_pane_contents  # sets a global variable
 	if is_restoring_pane_contents; then
+		popup_log "Extracting archived pane contents"
 		pane_content_files_restore_from_archive
 	fi
 	while read line; do
@@ -364,24 +367,48 @@ cleanup_restored_pane_contents() {
 }
 
 main() {
-	if supported_tmux_version_ok && check_saved_session_exists; then
+	if ! supported_tmux_version_ok; then
+		wait_for_popup_close
+		return 1
+	fi
+
+	if ! check_saved_session_exists; then
+		wait_for_popup_close
+		return 1
+	fi
+
+	if [ "${SCRIPT_OUTPUT:-}" != "quiet" ]; then
+		popup_header "restore" "loading..."
 		start_spinner "restoring..." "Tmux restore complete!"
-		execute_hook "pre-restore-all"
-		restore_all_panes
-		handle_session_0
-		restore_window_properties >/dev/null 2>&1
-		execute_hook "pre-restore-pane-processes"
-		restore_all_pane_processes
-		# below functions restore exact cursor positions
-		restore_active_pane_for_each_window
-		restore_zoomed_windows
-		restore_grouped_sessions  # also restores active and alt windows for grouped sessions
-		restore_active_and_alternate_windows
-		restore_active_and_alternate_sessions
-		cleanup_restored_pane_contents
-		execute_hook "post-restore-all"
+	fi
+	popup_log "Loading restore data from $(last_resurrect_file)"
+
+	popup_log "Running pre-restore-all hook"
+	execute_hook "pre-restore-all"
+	popup_log "Restoring panes and sessions"
+	restore_all_panes
+	handle_session_0
+	popup_log "Restoring window layouts and names"
+	restore_window_properties >/dev/null 2>&1
+	popup_log "Running pre-restore-pane-processes hook"
+	execute_hook "pre-restore-pane-processes"
+	popup_log "Restoring pane processes"
+	restore_all_pane_processes
+	popup_log "Restoring active panes, zoom state, grouped sessions, and client state"
+	# below functions restore exact cursor positions
+	restore_active_pane_for_each_window
+	restore_zoomed_windows
+	restore_grouped_sessions  # also restores active and alt windows for grouped sessions
+	restore_active_and_alternate_windows
+	restore_active_and_alternate_sessions
+	popup_log "Cleaning temporary restore artifacts"
+	cleanup_restored_pane_contents
+	popup_log "Running post-restore-all hook"
+	execute_hook "post-restore-all"
+	if [ "${SCRIPT_OUTPUT:-}" != "quiet" ]; then
 		stop_spinner
 		display_message "Tmux restore complete!"
 	fi
+	wait_for_popup_close
 }
 main

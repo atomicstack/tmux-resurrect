@@ -1,9 +1,15 @@
 start_spinner() {
+	if is_popup_output; then
+		return
+	fi
 	$CURRENT_DIR/tmux_spinner.sh "$1" "$2" &
 	export SPINNER_PID=$!
 }
 
 stop_spinner() {
+	if is_popup_output; then
+		return
+	fi
 	kill $SPINNER_PID
 }
 
