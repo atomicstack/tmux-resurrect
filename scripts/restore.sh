@@ -7,6 +7,9 @@ source "$CURRENT_DIR/helpers.sh"
 source "$CURRENT_DIR/process_restore_helpers.sh"
 source "$CURRENT_DIR/spinner_helpers.sh"
 
+# if "quiet" script produces no output
+SCRIPT_OUTPUT="$1"
+
 # delimiter
 d=$'\t'
 
