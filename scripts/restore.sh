@@ -23,6 +23,8 @@ RESTORING_FROM_SCRATCH="false"
 
 RESTORE_PANE_CONTENTS="false"
 
+_RESTORE_CURRENT_SESSION=""
+
 is_line_type() {
 	local line_type="$1"
 	local line="$2"
@@ -181,6 +183,10 @@ restore_pane() {
 	while IFS=$d read line_type session_name window_number window_active window_flags pane_index pane_title dir pane_active pane_command pane_full_command; do
 		dir="$(remove_first_char "$dir")"
 		pane_full_command="$(remove_first_char "$pane_full_command")"
+		if [ "$session_name" != "$_RESTORE_CURRENT_SESSION" ]; then
+			_RESTORE_CURRENT_SESSION="$session_name"
+			popup_log "  session \"$session_name\""
+		fi
 		if [ "$session_name" == "0" ]; then
 			restored_session_0_true
 		fi
@@ -292,8 +298,13 @@ handle_session_0() {
 
 restore_window_properties() {
 	local window_name
+	local current_session=""
 	\grep '^window' $(last_resurrect_file) |
 		while IFS=$d read line_type session_name window_number window_name window_active window_flags window_layout automatic_rename; do
+			if [ "$session_name" != "$current_session" ]; then
+				current_session="$session_name"
+				popup_log "  session \"$session_name\""
+			fi
 			tmux select-layout -t "${session_name}:${window_number}" "$window_layout"
 
 			# Below steps are properly handling window names and automatic-rename
@@ -312,8 +323,13 @@ restore_window_properties() {
 restore_all_pane_processes() {
 	if restore_pane_processes_enabled; then
 		local pane_full_command
+		local current_session=""
 		awk 'BEGIN { FS="\t"; OFS="\t" } /^pane/ && $11 !~ "^:$" { print $2, $3, $6, $8, $11; }' $(last_resurrect_file) |
 			while IFS=$d read -r session_name window_number pane_index dir pane_full_command; do
+				if [ "$session_name" != "$current_session" ]; then
+					current_session="$session_name"
+					popup_log "  session \"$session_name\""
+				fi
 				dir="$(remove_first_char "$dir")"
 				pane_full_command="$(remove_first_char "$pane_full_command")"
 				restore_pane_process "$pane_full_command" "$session_name" "$window_number" "$pane_index" "$dir"
@@ -384,29 +400,25 @@ main() {
 		popup_header "restore" "loading..."
 		start_spinner "restoring..." "Tmux restore complete!"
 	fi
-	popup_log "Loading restore data from $(last_resurrect_file)"
+	popup_log "loading restore data from $(last_resurrect_file)"
 
-	popup_log "Running pre-restore-all hook"
 	execute_hook "pre-restore-all"
-	popup_log "Restoring panes and sessions"
+	popup_log "restoring panes and sessions:"
 	restore_all_panes
 	handle_session_0
-	popup_log "Restoring window layouts and names"
-	restore_window_properties >/dev/null 2>&1
-	popup_log "Running pre-restore-pane-processes hook"
+	popup_log "restoring window layouts and names:"
+	restore_window_properties 2>/dev/null
 	execute_hook "pre-restore-pane-processes"
-	popup_log "Restoring pane processes"
+	popup_log "restoring pane processes:"
 	restore_all_pane_processes
-	popup_log "Restoring active panes, zoom state, grouped sessions, and client state"
+	popup_log "restoring active panes, zoom state, and client state"
 	# below functions restore exact cursor positions
 	restore_active_pane_for_each_window
 	restore_zoomed_windows
 	restore_grouped_sessions  # also restores active and alt windows for grouped sessions
 	restore_active_and_alternate_windows
 	restore_active_and_alternate_sessions
-	popup_log "Cleaning temporary restore artifacts"
 	cleanup_restored_pane_contents
-	popup_log "Running post-restore-all hook"
 	execute_hook "post-restore-all"
 	if [ "${SCRIPT_OUTPUT:-}" != "quiet" ]; then
 		stop_spinner

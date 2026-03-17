@@ -239,7 +239,7 @@ remove_old_backups() {
 save_all() {
 	local resurrect_file_path="$(resurrect_file_path)"
 	local last_resurrect_file="$(last_resurrect_file)"
-	popup_log "Writing tmux snapshot to $resurrect_file_path"
+	popup_log "writing tmux snapshot to $resurrect_file_path"
 	mkdir -p "$(resurrect_dir)"
 	popup_log "dumping grouped sessions..."
 	fetch_and_dump_grouped_sessions > "$resurrect_file_path"
@@ -249,25 +249,23 @@ save_all() {
 	dump_windows >> "$resurrect_file_path"
 	popup_log "dumping state..."
 	dump_state   >> "$resurrect_file_path"
-	popup_log "running post-save-layout hook..."
 	execute_hook "post-save-layout" "$resurrect_file_path"
 	if files_differ "$resurrect_file_path" "$last_resurrect_file"; then
 		ln -fs "$(basename "$resurrect_file_path")" "$last_resurrect_file"
-		SAVE_RESULT_DETAIL="Save written to $resurrect_file_path"
+		SAVE_RESULT_DETAIL="save written to $resurrect_file_path"
 	else
 		rm "$resurrect_file_path"
-		SAVE_RESULT_DETAIL="No changes detected; existing save was kept"
+		SAVE_RESULT_DETAIL="no changes detected; existing save was kept"
 	fi
 	if capture_pane_contents_option_on; then
-		popup_log "Capturing pane contents"
+		popup_log "capturing pane contents"
 		mkdir -p "$(pane_contents_dir "save")"
 		dump_pane_contents
 		pane_contents_create_archive
 		rm "$(pane_contents_dir "save")"/*
 	fi
-	popup_log "Pruning expired backup files"
+	popup_log "pruning expired backup files"
 	remove_old_backups
-	popup_log "Running post-save-all hook"
 	execute_hook "post-save-all"
 }
 
